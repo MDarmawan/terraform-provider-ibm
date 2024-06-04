@@ -44,6 +44,11 @@ func DataSourceIBMKMSKmipAdapters() *schema.Resource {
 				Optional:    true,
 				Description: "Flag to return the count of how many adapters there are in total",
 			},
+			"filters": {
+				Type:        schema.TypeMap,
+				Optional:    true,
+				Description: "Map of filters to filter the KMIP adapters by",
+			},
 			"total_count": {
 				Type:        schema.TypeInt,
 				Computed:    true,
@@ -86,6 +91,28 @@ func dataSourceIBMKMSKmipAdaptersList(d *schema.ResourceData, meta interface{}) 
 	if showTotalCount, ok := d.GetOk("show_total_count"); ok {
 		showTotalCountEnabled = showTotalCount.(bool)
 		opts.TotalCount = &showTotalCountEnabled
+	}
+
+	// Process filters
+	filters := map[string]string{}
+	if data, ok := d.GetOk("filters"); ok {
+		dataMap, ok2 := data.(map[string]interface{})
+		if !ok2 {
+			err = fmt.Errorf("[ERROR] Error converting profile data to map[string]interface{}")
+			return err
+		}
+		for key := range dataMap {
+			if val, ok := dataMap[key].(string); ok {
+				filters[key] = val
+			} else {
+				err = fmt.Errorf("[ERROR] Error converting value with key {%s} into string", key)
+				return err
+			}
+		}
+	}
+
+	if crk, ok := filters["crk_id"]; ok {
+		opts.CrkID = crk
 	}
 
 	adapters, err := api.GetKMIPAdapters(context.Background(), opts)
